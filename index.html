@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>En Kısa Yol - Algoritma Çalışması</title>
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; background-color: #f3f4f6; }
+        .grid-bg {
+            background-image: 
+                linear-gradient(to right, #e5e7eb 1px, transparent 1px),
+                linear-gradient(to bottom, #e5e7eb 1px, transparent 1px);
+            background-size: 40px 40px;
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        // --- Icons (Inline SVGs to prevent dependency errors) ---
+        const Check = ({ size = 24, className = "" }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><polyline points="20 6 9 17 4 12"></polyline></svg>
+        );
+        const X = ({ size = 24, className = "" }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+        );
+        const Calculator = ({ size = 24, className = "" }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><rect x="4" y="2" width="16" height="20" rx="2"></rect><line x1="8" y1="6" x2="16" y2="6"></line><line x1="16" y1="14" x2="16" y2="14"></line><line x1="16" y1="18" x2="16" y2="18"></line><line x1="12" y1="14" x2="12" y2="14"></line><line x1="12" y1="18" x2="12" y2="18"></line><line x1="8" y1="14" x2="8" y2="14"></line><line x1="8" y1="18" x2="8" y2="18"></line></svg>
+        );
+        const MapPin = ({ size = 24, className = "" }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
+        );
+        const Trophy = ({ size = 24, className = "" }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"></path><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"></path><path d="M4 22h16"></path><path d="M10 14.66V17"></path><path d="M14 14.66V17"></path><path d="M12 2h0"></path><path d="M6.35 17.55A8.36 8.36 0 0 1 12 2a8.36 8.36 0 0 1 5.65 15.55"></path><path d="M12 2v14"></path></svg>
+        );
+
+        // --- Data ---
+        const worksheetData = [
+            {
+                id: 1,
+                title: "1. A'dan B'ye bir yeşil bir maviye uğrayarak git.",
+                paths: [
+                    { id: 'a', text: "2 birim doğuya, 1 birim güneye, 3 birim doğuya, 1 birim güneye, 3 birim batıya, 1 birim güneye, 3 birim doğuya git.", expected: 14 },
+                    { id: 'b', text: "3 birim güneye, 2 birim doğuya, 2 birim kuzeye, 3 birim doğuya, 2 birim güneye git.", expected: 12 },
+                    { id: 'c', text: "2 birim doğuya, 1 birim güneye, 3 birim doğuya, 3 birim batıya, 2 birim güneye, 2 birim doğuya git.", expected: 13 }
+                ]
+            },
+            {
+                id: 2,
+                title: "2. A'dan B'ye iki kırmızıya uğrayarak git.",
+                paths: [
+                    { id: 'a', text: "3 birim doğuya, 1 birim güneye, 2 birim batıya, 1 birim güneye, 4 birim doğuya, 1 birim güneye git.", expected: 12 },
+                    { id: 'b', text: "1 birim güneye, 1 birim doğuya, 1 birim kuzeye, 2 birim doğuya, 3 birim güneye, 2 birim doğuya git.", expected: 10 },
+                    { id: 'c', text: "3 birim doğuya, 3 birim batıya, 1 birim güneye, 1 birim doğuya, 1 birim güneye, 4 birim doğuya, 1 birim güneye git.", expected: 14 }
+                ]
+            },
+            {
+                id: 3,
+                title: "3. B'den A'ya önce yeşile sonra maviye uğrayarak git.",
+                paths: [
+                    { id: 'a', text: "3 birim güneye, 2 birim doğuya, 2 birim kuzeye, 3 birim doğuya, 2 birim güneye git.", expected: 12 },
+                    { id: 'b', text: "2 birim doğuya, 3 birim güneye, 2 birim doğuya, 3 birim kuzeye, 1 birim doğuya, 3 birim güneye git.", expected: 14 },
+                    { id: 'c', text: "2 birim doğuya, 3 birim güneye, 1 birim doğuya, 2 birim kuzeye, 2 birim doğuya, 2 birim batıya, 2 birim güneye, 2 birim doğuya git.", expected: 16 }
+                ]
+            }
+        ];
+
+        // --- Components ---
+
+        const MapVisualizer = () => {
+            // Grid is 5 units wide (6 lines), 3 units high (4 lines)
+            // Based on analysis: A(0,0), B(5,3)
+            // Scale: 40px per unit
+            const unit = 40;
+            const width = 5 * unit;
+            const height = 3 * unit;
+            const padding = 30;
+
+            const dots = [
+                { x: 0, y: 0, color: 'black', label: 'A' },
+                { x: 5, y: 3, color: 'black', label: 'B' },
+                { x: 1, y: 1, color: 'red', label: '' },
+                { x: 3, y: 0, color: 'red', label: '' },
+                { x: 2, y: 3, color: '#22c55e', label: '' }, // Green
+                { x: 5, y: 1, color: '#3b82f6', label: '' }, // Blue
+            ];
+
+            return (
+                <div className="flex justify-center mb-8">
+                    <div className="relative bg-white p-4 rounded-xl shadow-md border border-gray-200">
+                        <div className="absolute top-2 left-4 text-xs font-semibold text-gray-400">Harita Referansı</div>
+                        <svg width={width + padding * 2} height={height + padding * 2} className="mx-auto">
+                            <g transform={`translate(${padding}, ${padding})`}>
+                                {/* Grid Lines */}
+                                {Array.from({ length: 4 }).map((_, i) => (
+                                    <line key={`h-${i}`} x1="0" y1={i * unit} x2={width} y2={i * unit} stroke="#e5e7eb" strokeWidth="2" />
+                                ))}
+                                {Array.from({ length: 6 }).map((_, i) => (
+                                    <line key={`v-${i}`} x1={i * unit} y1="0" x2={i * unit} y2={height} stroke="#e5e7eb" strokeWidth="2" />
+                                ))}
+                                
+                                {/* Border */}
+                                <rect x="0" y="0" width={width} height={height} fill="none" stroke="#374151" strokeWidth="2" />
+
+                                {/* Dots */}
+                                {dots.map((dot, idx) => (
+                                    <g key={idx}>
+                                        <circle 
+                                            cx={dot.x * unit} 
+                                            cy={dot.y * unit} 
+                                            r={dot.label ? 14 : 10} 
+                                            fill={dot.color} 
+                                            stroke="white" 
+                                            strokeWidth="2"
+                                            className="shadow-sm"
+                                        />
+                                        {dot.label && (
+                                            <text 
+                                                x={dot.x * unit} 
+                                                y={dot.y * unit} 
+                                                dy="0.35em" 
+                                                textAnchor="middle" 
+                                                fill="white" 
+                                                fontSize="14" 
+                                                fontWeight="bold"
+                                            >
+                                                {dot.label}
+                                            </text>
+                                        )}
+                                    </g>
+                                ))}
+                            </g>
+                        </svg>
+                    </div>
+                </div>
+            );
+        };
+
+        const PathInput = ({ pathData, onCorrect, isSolved }) => {
+            const [inputVal, setInputVal] = useState('');
+            const [status, setStatus] = useState('idle'); // idle, correct, incorrect
+
+            const checkAnswer = () => {
+                const val = parseInt(inputVal);
+                if (isNaN(val)) return;
+
+                if (val === pathData.expected) {
+                    setStatus('correct');
+                    onCorrect(pathData.id, val);
+                } else {
+                    setStatus('incorrect');
+                }
+            };
+
+            const handleKeyDown = (e) => {
+                if (e.key === 'Enter') checkAnswer();
+            }
+
+            return (
+                <div className={`p-4 rounded-lg border transition-all duration-300 ${status === 'correct' ? 'bg-green-50 border-green-200' : 'bg-white border-gray-200 hover:shadow-sm'}`}>
+                    <div className="flex flex-col md:flex-row gap-4 justify-between items-start md:items-center">
+                        <div className="flex-1">
+                            <span className="font-bold text-indigo-600 mr-2">{pathData.id})</span>
+                            <span className="text-gray-700 leading-relaxed">{pathData.text}</span>
+                        </div>
+                        
+                        <div className="flex items-center gap-2 min-w-[200px] justify-end">
+                            <div className="relative">
+                                <input 
+                                    type="number" 
+                                    placeholder="?" 
+                                    className={`w-20 p-2 text-center font-bold border rounded-md focus:outline-none focus:ring-2 ${
+                                        status === 'correct' ? 'border-green-500 text-green-700 bg-green-100' : 
+                                        status === 'incorrect' ? 'border-red-500 bg-red-50 focus:ring-red-300' : 
+                                        'border-gray-300 focus:ring-indigo-300'
+                                    }`}
+                                    value={inputVal}
+                                    onChange={(e) => {
+                                        setInputVal(e.target.value);
+                                        if(status === 'incorrect') setStatus('idle');
+                                    }}
+                                    onKeyDown={handleKeyDown}
+                                    disabled={status === 'correct'}
+                                />
+                                {status === 'correct' && (
+                                    <div className="absolute -right-6 top-2 text-green-600">
+                                        <Check size={20} />
+                                    </div>
+                                )}
+                            </div>
+                            
+                            <button 
+                                onClick={checkAnswer}
+                                disabled={status === 'correct' || !inputVal}
+                                className={`px-4 py-2 rounded-md font-medium transition-colors ${
+                                    status === 'correct' 
+                                        ? 'bg-transparent text-green-700 cursor-default' 
+                                        : 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-sm active:transform active:scale-95'
+                                }`}
+                            >
+                                {status === 'correct' ? 'Doğru!' : 'Kontrol Et'}
+                            </button>
+                        </div>
+                    </div>
+                    {status === 'incorrect' && (
+                        <div className="mt-2 text-red-500 text-sm font-medium flex items-center gap-1">
+                            <X size={16} />
+                            Hatalı hesaplama. Yönergelerdeki sayıları dikkatlice topla.
+                        </div>
+                    )}
+                </div>
+            );
+        };
+
+        const QuestionBlock = ({ question }) => {
+            const [solvedPaths, setSolvedPaths] = useState({});
+            const [shortestGuess, setShortestGuess] = useState('');
+            const [longestGuess, setLongestGuess] = useState('');
+            const [finalFeedback, setFinalFeedback] = useState(null);
+
+            const handleCorrect = (pathId, val) => {
+                setSolvedPaths(prev => ({ ...prev, [pathId]: val }));
+            };
+
+            const allPathsSolved = question.paths.every(p => solvedPaths[p.id] !== undefined);
+
+            const checkFinal = () => {
+                // Determine actual shortest and longest
+                const sorted = [...question.paths].sort((a, b) => a.expected - b.expected);
+                const actualShortestVal = sorted[0].expected;
+                const actualLongestVal = sorted[sorted.length - 1].expected;
+
+                // Find which IDs correspond to these values
+                const shortestIds = question.paths.filter(p => p.expected === actualShortestVal).map(p => p.id);
+                const longestIds = question.paths.filter(p => p.expected === actualLongestVal).map(p => p.id);
+
+                const isShortestCorrect = shortestIds.includes(shortestGuess);
+                const isLongestCorrect = longestIds.includes(longestGuess);
+
+                if (isShortestCorrect && isLongestCorrect) {
+                    setFinalFeedback('correct');
+                } else {
+                    setFinalFeedback('incorrect');
+                }
+            };
+
+            return (
+                <div className="bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden mb-8">
+                    <div className="bg-indigo-600 p-4 md:p-6 text-white">
+                        <h2 className="text-lg md:text-xl font-bold flex items-center gap-2">
+                            <MapPin className="text-indigo-200" />
+                            {question.title}
+                        </h2>
+                    </div>
+                    
+                    <div className="p-4 md:p-6 space-y-4">
+                        <p className="text-gray-500 text-sm italic mb-4">
+                            Her bir şıktaki adımları topla ve kutucuğa yaz.
+                        </p>
+
+                        <div className="space-y-3">
+                            {question.paths.map(path => (
+                                <PathInput 
+                                    key={path.id} 
+                                    pathData={path} 
+                                    onCorrect={handleCorrect}
+                                    isSolved={solvedPaths[path.id] !== undefined}
+                                />
+                            ))}
+                        </div>
+
+                        {allPathsSolved && (
+                            <div className="mt-8 pt-6 border-t border-gray-100 animate-fade-in">
+                                <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                                    <Trophy size={20} className="text-yellow-500" />
+                                    Sonuç Analizi
+                                </h3>
+                                
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div className="bg-green-50 p-4 rounded-lg border border-green-100">
+                                        <label className="block text-green-800 font-medium mb-2">En Kısa Yol Hangisi?</label>
+                                        <div className="flex gap-2">
+                                            {question.paths.map(p => (
+                                                <button
+                                                    key={p.id}
+                                                    onClick={() => setShortestGuess(p.id)}
+                                                    className={`w-10 h-10 rounded-full font-bold transition-all ${
+                                                        shortestGuess === p.id 
+                                                            ? 'bg-green-600 text-white shadow-lg scale-110' 
+                                                            : 'bg-white text-green-700 border border-green-200 hover:bg-green-100'
+                                                    }`}
+                                                >
+                                                    {p.id}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    <div className="bg-orange-50 p-4 rounded-lg border border-orange-100">
+                                        <label className="block text-orange-800 font-medium mb-2">En Uzun Yol Hangisi?</label>
+                                        <div className="flex gap-2">
+                                            {question.paths.map(p => (
+                                                <button
+                                                    key={p.id}
+                                                    onClick={() => setLongestGuess(p.id)}
+                                                    className={`w-10 h-10 rounded-full font-bold transition-all ${
+                                                        longestGuess === p.id 
+                                                            ? 'bg-orange-600 text-white shadow-lg scale-110' 
+                                                            : 'bg-white text-orange-700 border border-orange-200 hover:bg-orange-100'
+                                                    }`}
+                                                >
+                                                    {p.id}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="mt-6 flex justify-end items-center gap-4">
+                                    {finalFeedback === 'correct' && (
+                                        <span className="text-green-600 font-bold flex items-center gap-2 bg-green-50 px-4 py-2 rounded-lg">
+                                            <Check size={20} /> Harika! Doğru analiz.
+                                        </span>
+                                    )}
+                                    {finalFeedback === 'incorrect' && (
+                                        <span className="text-red-600 font-bold flex items-center gap-2 bg-red-50 px-4 py-2 rounded-lg">
+                                            <X size={20} /> Tekrar kontrol et.
+                                        </span>
+                                    )}
+                                    
+                                    <button 
+                                        onClick={checkFinal}
+                                        disabled={!shortestGuess || !longestGuess}
+                                        className={`px-6 py-3 rounded-lg font-bold text-white shadow-md transition-all ${
+                                            (!shortestGuess || !longestGuess)
+                                                ? 'bg-gray-300 cursor-not-allowed'
+                                                : 'bg-gray-800 hover:bg-gray-900 active:scale-95'
+                                        }`}
+                                    >
+                                        Analizi Tamamla
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            );
+        };
+
+        const App = () => {
+            return (
+                <div className="min-h-screen pb-12">
+                    <div className="bg-white shadow-sm border-b border-gray-200 mb-8 sticky top-0 z-10">
+                        <div className="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                                <div className="bg-indigo-100 p-2 rounded-lg text-indigo-600">
+                                    <Calculator size={24} />
+                                </div>
+                                <h1 className="text-xl md:text-2xl font-bold text-gray-800">En Kısa Yol</h1>
+                            </div>
+                            <span className="text-sm font-medium text-gray-500 bg-gray-100 px-3 py-1 rounded-full">
+                                6.2.5.B1
+                            </span>
+                        </div>
+                    </div>
+
+                    <main className="max-w-3xl mx-auto px-4">
+                        <div className="text-center mb-8">
+                            <h2 className="text-2xl font-bold text-gray-900 mb-2">Yol Hesaplama ve Analiz</h2>
+                            <p className="text-gray-600">
+                                Aşağıdaki haritaya göre verilen algoritmaların kaç adım sürdüğünü hesapla.
+                            </p>
+                        </div>
+
+                        <MapVisualizer />
+
+                        {worksheetData.map(q => (
+                            <QuestionBlock key={q.id} question={q} />
+                        ))}
+
+                        <div className="text-center mt-12 text-gray-400 text-sm">
+                            <p>Tüm hakları saklıdır &copy; 2024</p>
+                        </div>
+                    </main>
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
